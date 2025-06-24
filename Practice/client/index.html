@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>個人情報チェッカー</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <h2>個人情報チェッカー</h2>
+    <div class="main">
+        <!-- GET メソッドを利用してユーザー情報を表示する -->
+        <button onclick="fetchAllUsers()">全ユーザー表示</button>
+        <div class="result" id="result">
+            <!-- ここに情報が表示されます -->
+        </div>
+
+        <!-- POST メソッドを利用してユーザー登録を行う -->
+        <div class="register">
+            <p>ユーザー登録</p>
+            <form id="userForm" onsubmit="handleRegister(event); return false;">
+                <label for="name">名前:</label>
+                <input type="text" id="name" name="name" required>
+                <label for="age">年齢:</label>
+                <input type="text" id="age" name="age" required>
+                <label for="hobby">趣味:</label>
+                <input type="text" id="hobby" name="hobby" required>
+                <button type="submit">登録</button>
+            </form>
+        </div>
+
+        <!-- PUT メソッドを利用してユーザー情報の更新を行う -->
+        <div class="change">
+            <p>ユーザー情報更新</p>
+            <form id="userForm" onsubmit="handleChange(event); return false;">
+                <label for="id">id :</label>
+                <input type="text" id="id" name="id" required>
+                <label for="name">名前:</label>
+                <input type="text" id="name" name="name" required>
+                <label for="age">年齢:</label>
+                <input type="text" id="age" name="age" required>
+                <label for="hobby">趣味:</label>
+                <input type="text" id="hobby" name="hobby" required>
+                <button type="submit">更新</button>
+            </form>
+        </div>
+
+
+        <!-- DELETE メソッドを利用してユーザー情報の削除を行う -->
+        <div class="delete">
+                <p>ユーザー消去</p>
+                <form id="userForm" onsubmit="handleDelete(event); return false;">
+                    <label for="id">id:</label>
+                    <input type="text" id="id" name="id" required>
+                    <button type="submit">削除</button>
+                </form>    
+        </div>
+    </div>
+    <script src="index.js"></script>
+</body>
+
+</html>

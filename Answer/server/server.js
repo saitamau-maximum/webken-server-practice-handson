@@ -58,13 +58,7 @@ const server = http.createServer((request, response) => {
         request.on('end', () => {
             // 一番idが大きい既存のユーザーのid + 1 を新しいユーザーのidとして採用する
             // 最新のユーザーidを取得
-            let newId = 0;
-            for (let i = 0; i < users.length; i++) {
-                if (users[i].id > newId) {
-                    newId = users[i].id;
-                }
-            }
-            newId += 1;
+            const newId = users.length + 1;
 
             try {
                 const { name, age, hobby } = JSON.parse(body);
@@ -92,30 +86,37 @@ const server = http.createServer((request, response) => {
     // hint 2 ... i 番目のユーザー情報の更新は users[i - 1] に入力値を代入すればよい
     // hint 3 ...POSTの実装や外部サイトを参考にデータの受送信を実装しよう
 
-    else if (url === '/api/users' && method === 'PUT'){
+    else if (url.startsWith('/api/users') && method === 'PUT') {
+        const userId = parseInt(url.split('/')[3]);
+
         let body = '';
 
         request.on('data', (data) => {
             body += data.toString();
-       })
+        })
 
-       request.on('end', () => {
+        request.on('end', () => {
             try {
-                const { id, name, age, hobby } = JSON.parse(body);
+                const { name, age, hobby } = JSON.parse(body);
+                const user = users.find(u => u.id === userId);
 
-                const zero_indexedId = id - 1;
-
-                if (zero_indexedId < 0 || zero_indexedId >= users.length) {
+                if (!user) {
                     response.writeHead(404, { 'content-type': 'application/json' });
-                    response.end(JSON.stringify({ error: '存在しないユーザーが指定されました' }));
+                    response.end(JSON.stringify({ error: `id: ${userId}のユーザは存在しません` }));
+                    return;
                 }
 
-                users[zero_indexedId] = {
-                    id: id,
-                    name: name,
-                    age: parseInt(age, 10),
-                    hobby: hobby
-                };
+                users = users.map((user) => {
+                    if (user.id === userId) {
+                        return {
+                            ...user,
+                            name: name,
+                            age: parseInt(age, 10),
+                            hobby: hobby
+                        };
+                    }
+                    return user;
+                })
 
                 response.writeHead(200, { 'Content-Type': 'application/json' });
                 response.end(JSON.stringify(users));
@@ -124,7 +125,7 @@ const server = http.createServer((request, response) => {
                 response.writeHead(400, { 'Content-Type': 'application/json' });
                 response.end(JSON.stringify({ error: '不正なjson形式です' }));
             }
-       })
+        })
     }
 
     // DELETEリクエストの処理
@@ -132,45 +133,32 @@ const server = http.createServer((request, response) => {
     // hint 1 ... JavaScriptのメソッドでfilterやspliceを使うと実装できます．検索してみましょう
     // hint 2 ... for文を使うことでも実装できます．
     // i番目のユーザー情報をdeleteすることは i + 1番目のユーザー情報を i 番目に代入することを 区間[i, users.length) で繰り返すことでも実現可能です．
-    else if (url === '/api/users' && method === 'DELETE') {
-        let body = '';
+    else if (url.startsWith('/api/users') && method === 'DELETE') {
+        const userId = parseInt(url.split('/')[3]);
 
-        request.on('data', (data) => {
-            body += data.toString();
-        });
+        const user = users.find(u => u.id === userId);
 
-        request.on('end', () => {
-            try {
-                const { id } = JSON.parse(body);
-                const zero_indexedId = id - 1;
+        if (!user) {
+            response.writeHead(404, { 'content-type': 'application/json' });
+            response.end(JSON.stringify({ error: '存在しないユーザーが指定されました' }));
+            return;
+        }
 
-                if (zero_indexedId < 0 || zero_indexedId >= users.length) {
-                    response.writeHead(404, { 'content-type': 'application/json' });
-                    response.end(JSON.stringify({ error: '存在しないユーザーが指定されました' }));
-                    return;
-                }
+        // ユーザーを削除
+        users = users.filter(user => user.id !== userId);
 
-                // ユーザーを削除
-                users = users.filter(user => user.id !== id);
+        // 別解1 : spliceを使う方法
+        // users.splice(zero_indexedId, 1);
 
-                // 別解1 : spliceを使う方法
-                // users.splice(zero_indexedId, 1);
+        // 別解2 : for文を使う方法
+        // for (let i = zero_indexedId; i < users.length - 1; i++) {
+        //     users[i] = users[i + 1];
+        // }
 
-                // 別解2 : for文を使う方法
-                // for (let i = zero_indexedId; i < users.length - 1; i++) {
-                //     users[i] = users[i + 1];
-                // }
-
-                response.writeHead(200, { 'Content-Type': 'application/json' });
-                response.end(JSON.stringify(users));
-            } catch {
-                console.error('jsonのデータ取得に失敗しました.')
-                response.writeHead(400, { 'Content-Type': 'application/json' });
-                response.end(JSON.stringify({ error: '不正なjson形式です' }));
-            }
-        });
+        response.writeHead(200, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify(users));
     }
-})
+});
 
 server.listen(3000, () => {
     console.log('サーバーが http://localhost:3000 で起動しました');

@@ -1,3 +1,9 @@
+function escapeHtml(html) {
+    const div = document.createElement('div');
+    div.textContent = html;
+    return div.innerHTML;
+}
+
 // 全ユーザーの情報を表示する
 async function fetchAllUsers() {
     try {
@@ -5,12 +11,22 @@ async function fetchAllUsers() {
         const users = await response.json(); // responseをjson形式で入手
         const field = document.getElementById('result');
         field.innerHTML = '';
-        for (let i = 0; i < users.length; i++) {
+
+        let content = '';
+        for (let i = 0; i < users.length; i++)
+        {
             const [name, age, hobby] = [users[i].name, users[i].age, users[i].hobby];
-            field.innerHTML += (`
-                <div class="userTable"> <div class="userId"> id : ${i + 1} ,</div> <div class="userName"> 名前: ${name} ,</div> <div class="userAge"> 年齢: ${age} ,</div> <div class="userHobby"> 趣味: ${hobby} </div></div>
-            `);
+            content += 
+            `
+                <div class="userTable">
+                    <div class="userId">id : ${i + 1}</div>
+                    <div class="userName">名前: ${escapeHtml(name)}</div>
+                    <div class="userAge">年齢: ${escapeHtml(age.toString())}</div>
+                    <div class="userHobby">趣味: ${escapeHtml(hobby)}</div>
+                </div>
+            `;
         }
+        field.innerHTML = content;
     } catch (error) {
         console.error('Error :', error);
     }

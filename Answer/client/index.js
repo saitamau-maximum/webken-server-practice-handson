@@ -34,6 +34,11 @@ async function handleRegister() {
     const age = parseInt(document.getElementById('register-age').value, 10);
     const hobby = document.getElementById('register-hobby').value;
 
+    // 入力欄を空白にする
+    document.getElementById('register-name').value = '';
+    document.getElementById('register-age').value = '';
+    document.getElementById('register-hobby').value = '';
+
     // 入力されてないフィールドがある場合は処理を中止
     if (!name || isNaN(age) || !hobby) {
         alert('すべてのフィールドを入力してください。');
@@ -66,18 +71,24 @@ async function handleChange() {
     const age = parseInt(document.getElementById('change-age').value, 10);
     const hobby = document.getElementById('change-hobby').value;
 
+    // 入力欄を空白にする
+    document.getElementById('change-id').value = '';
+    document.getElementById('change-name').value = '';
+    document.getElementById('change-age').value = '';
+    document.getElementById('change-hobby').value = '';
+
     if (isNaN(id) || !name || isNaN(age) || !hobby) {
         alert('すべてのフィールドを入力してください。');
         return;
     }
 
     try {
-        const response = await fetch('http://localhost:3000/api/users', {
+        const response = await fetch('http://localhost:3000/api/users/' + id, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ id, name, age, hobby })
+            body: JSON.stringify({ name, age, hobby })
         });
 
         if (response.ok) {
@@ -97,8 +108,12 @@ async function handleDelete() {
         alert('有効なユーザーIDを入力してください。');
         return;
     }
+
+    // 入力欄を空白にする
+    document.getElementById('delete-id').value = '';
+    
     try {
-        const response = await fetch('http://localhost:3000/api/users', {
+        const response = await fetch('http://localhost:3000/api/users/' + id, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json'

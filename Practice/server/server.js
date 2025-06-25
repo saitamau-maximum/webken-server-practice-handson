@@ -58,13 +58,7 @@ const server = http.createServer((request, response) => {
         request.on('end', () => {
             // 一番idが大きい既存のユーザーのid + 1 を新しいユーザーのidとして採用する
             // 最新のユーザーidを取得
-            let newId = 0;
-            for (let i = 0; i < users.length; i++) {
-                if (users[i].id > newId) {
-                    newId = users[i].id;
-                }
-            }
-            newId += 1;
+            const newId = users.length + 1;
     
             try {
                 const { name, age, hobby } = JSON.parse(body);

@@ -1,4 +1,7 @@
 function escapeHtml(html) {
+    if (html === null || html === undefined) {
+        return '';
+    }
     const div = document.createElement('div');
     div.textContent = html;
     return div.innerHTML;
@@ -37,7 +40,19 @@ async function fetchUser(id) {
     try {
         const response = await fetch('http://localhost:3000/api/users/' + id);
         const user = await response.json();
-        document.getElementById('result').innerHTML = '<h2>ユーザー' + id + '</h2><pre>' + JSON.stringify(user, null, 2) + '</pre>';
+        const field = document.getElementById('result');
+        field.innerHTML = '';
+
+        const content = `
+            <div class="userTable">
+                <div class="userId">id : ${id}</div>
+                <div class="userName">名前: ${escapeHtml(user.name)}</div>
+                <div class="userAge">年齢: ${escapeHtml(user.age.toString())}</div>
+                <div class="userHobby">趣味: ${escapeHtml(user.hobby)}</div>
+            </div>
+        `
+
+        field.innerHTML = content;
     } catch (error) {
         console.error('Error :', error);
     }

@@ -60,14 +60,14 @@ async function fetchUser(id) {
 
 // ユーザー情報を追加する
 async function handleRegister() {
-    const name = document.getElementById('name').value;
-    const age = parseInt(document.getElementById('age').value, 10);
-    const hobby = document.getElementById('hobby').value;
+    const name = document.getElementById('register-name').value;
+    const age = parseInt(document.getElementById('register-age').value, 10);
+    const hobby = document.getElementById('register-hobby').value;
 
     // 入力欄を空白にする
-    document.getElementById('name').value = '';
-    document.getElementById('age').value = '';
-    document.getElementById('hobby').value = '';
+    document.getElementById('register-name').value = '';
+    document.getElementById('register-age').value = '';
+    document.getElementById('register-hobby').value = '';
 
     // 入力されてないフィールドがある場合は処理を中止
     if (!name || isNaN(age) || !hobby) {

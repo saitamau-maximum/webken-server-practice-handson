@@ -1,7 +1,9 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+import { cors } from 'hono/cors';
 
 const app = new Hono();
+app.use('*', cors());
 
 let users = [
   { id: 1, name: "田中太郎", age: 20, hobby: "プログラミング" },

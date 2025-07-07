@@ -12,6 +12,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@hono/node-server": "^1.15.0",
     "hono": "^4.8.4"
   }
 }

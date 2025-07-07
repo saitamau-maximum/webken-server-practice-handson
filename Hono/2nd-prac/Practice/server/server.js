@@ -9,6 +9,8 @@ let users = [
   { id: 3, name: "鈴木次郎", age: 19, hobby: "ゲーム" },
 ];
 
+/* 1st-pracや講義資料を参考に以下のAPIを完成させましょう */
+
 // 全ユーザーを取得
 app.get("/api/users", (c) => {
 

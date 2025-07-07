@@ -14,8 +14,8 @@ const JWT_SECRET = 'your-secret-key-change-this-in-production';
 
 // サンプルデータ
 let users = [
-    { id: 1, username: 'admin', email: 'admin@example.com', password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', role: 'admin' }, // password: "password"
-    { id: 2, username: 'user1', email: 'user1@example.com', password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', role: 'user' }
+    { id: 1, username: 'user1', email: 'user1@example.com', password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi' }, // password: "password"
+    { id: 2, username: 'user2', email: 'user2@example.com', password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi' }
 ];
 
 let posts = [
@@ -36,7 +36,7 @@ let comments = [
 
 // ユーティリティ関数
 function generateToken(user) {
-    return jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
+    return jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '24h' });
 }
 
 function verifyToken(token) {
@@ -65,14 +65,249 @@ async function authMiddleware(c, next) {
     await next();
 }
 
-// 管理者権限チェックミドルウェア
-async function adminMiddleware(c, next) {
-    const user = c.get('user');
-    if (user.role !== 'admin') {
-        return c.json({ error: 'Admin access required' }, 403);
+/* ===== 認証エンドポイント ===== */
+
+// ユーザー登録
+app.post('/api/auth/register', async (c) => {
+    try {
+        const { username, email, password } = await c.req.json();
+        
+        // バリデーション
+        if (!username || !email || !password) {
+            return c.json({ error: 'Username, email, and password are required' }, 400);
+        }
+
+        // 既存ユーザーチェック
+        const existingUser = users.find(u => u.username === username || u.email === email);
+        if (existingUser) {
+            return c.json({ error: 'Username or email already exists' }, 409);
+        }
+
+        // パスワードハッシュ化
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        // 新しいユーザー作成
+        const newUser = {
+            id: users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1,
+            username,
+            email,
+            password: hashedPassword
+        };
+
+        users.push(newUser);
+        
+        // トークン生成
+        const token = generateToken(newUser);
+        
+        return c.json({ 
+            message: 'User registered successfully',
+            token,
+            user: { id: newUser.id, username: newUser.username, email: newUser.email }
+        }, 201);
+    } catch (error) {
+        return c.json({ error: 'Registration failed' }, 500);
     }
-    await next();
-}
+});
+
+// ログイン
+app.post('/api/auth/login', async (c) => {
+    try {
+        const { username, password } = await c.req.json();
+        
+        // バリデーション
+        if (!username || !password) {
+            return c.json({ error: 'Username and password are required' }, 400);
+        }
+
+        // ユーザー検索
+        const user = users.find(u => u.username === username);
+        if (!user) {
+            return c.json({ error: 'Invalid credentials' }, 401);
+        }
+
+        // パスワード検証
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+            return c.json({ error: 'Invalid credentials' }, 401);
+        }
+
+        // トークン生成
+        const token = generateToken(user);
+        
+        return c.json({ 
+            message: 'Login successful',
+            token,
+            user: { id: user.id, username: user.username, email: user.email }
+        });
+    } catch (error) {
+        return c.json({ error: 'Login failed' }, 500);
+    }
+});
+
+/* ===== ブログ投稿エンドポイント ===== */
+
+// 全投稿取得（ページネーション、検索、カテゴリフィルタリング対応）
+app.get('/api/posts', (c) => {
+    const page = parseInt(c.req.query('page') || '1');
+    const limit = parseInt(c.req.query('limit') || '10');
+    const search = c.req.query('search') || '';
+    const category = c.req.query('category');
+    const tag = c.req.query('tag');
+
+    let filteredPosts = posts;
+
+    // 検索フィルタ
+    if (search) {
+        filteredPosts = filteredPosts.filter(post => 
+            post.title.toLowerCase().includes(search.toLowerCase()) ||
+            post.content.toLowerCase().includes(search.toLowerCase())
+        );
+    }
+
+    // カテゴリフィルタ
+    if (category) {
+        filteredPosts = filteredPosts.filter(post => post.categoryId === parseInt(category));
+    }
+
+    // タグフィルタ
+    if (tag) {
+        filteredPosts = filteredPosts.filter(post => post.tags.includes(tag));
+    }
+
+    // ページネーション
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedPosts = filteredPosts.slice(startIndex, endIndex);
+
+    // 作成者情報とカテゴリ情報を追加
+    const postsWithDetails = paginatedPosts.map(post => {
+        const author = users.find(u => u.id === post.authorId);
+        const category = categories.find(c => c.id === post.categoryId);
+        return {
+            ...post,
+            author: author ? { id: author.id, username: author.username } : null,
+            category: category ? { id: category.id, name: category.name } : null
+        };
+    });
+
+    return c.json({
+        posts: postsWithDetails,
+        pagination: {
+            currentPage: page,
+            limit,
+            totalPosts: filteredPosts.length,
+            totalPages: Math.ceil(filteredPosts.length / limit)
+        }
+    });
+});
+
+// 特定投稿取得
+app.get('/api/posts/:id', (c) => {
+    const postId = parseInt(c.req.param('id'));
+    const post = posts.find(p => p.id === postId);
+
+    if (!post) {
+        return c.json({ error: 'Post not found' }, 404);
+    }
+
+    const author = users.find(u => u.id === post.authorId);
+    const category = categories.find(c => c.id === post.categoryId);
+    const postComments = comments.filter(comment => comment.postId === postId).map(comment => {
+        const commentAuthor = users.find(u => u.id === comment.authorId);
+        return {
+            ...comment,
+            author: commentAuthor ? { id: commentAuthor.id, username: commentAuthor.username } : null
+        };
+    });
+
+    return c.json({
+        ...post,
+        author: author ? { id: author.id, username: author.username } : null,
+        category: category ? { id: category.id, name: category.name } : null,
+        comments: postComments
+    });
+});
+
+// 投稿作成（要認証）
+app.post('/api/posts', authMiddleware, async (c) => {
+    // TODO: 投稿作成機能を実装してください
+    // ヒント：
+    // 1. リクエストボディから title, content, categoryId, tags を取得
+    // 2. バリデーションを実施
+    // 3. 新しい投稿を作成（authorId は c.get('user').id を使用）
+    // 4. posts配列に追加
+    // 5. 作成された投稿を返す
+    return c.json({ error: 'Not implemented' }, 501);
+});
+
+// 投稿更新（要認証、作成者のみ）
+app.put('/api/posts/:id', authMiddleware, async (c) => {
+    // TODO: 投稿更新機能を実装してください
+    // ヒント：
+    // 1. パラメータからpostIdを取得
+    // 2. 投稿が存在するかチェック
+    // 3. 作成者かチェック（post.authorId === c.get('user').id）
+    // 4. リクエストボディから更新データを取得
+    // 5. 投稿を更新
+    // 6. 更新された投稿を返す
+    return c.json({ error: 'Not implemented' }, 501);
+});
+
+// 投稿削除（要認証、作成者のみ）
+app.delete('/api/posts/:id', authMiddleware, async (c) => {
+    // TODO: 投稿削除機能を実装してください
+    // ヒント：
+    // 1. パラメータからpostIdを取得
+    // 2. 投稿が存在するかチェック
+    // 3. 作成者かチェック（post.authorId === c.get('user').id）
+    // 4. 投稿を削除
+    // 5. 関連するコメントも削除
+    // 6. 削除成功メッセージを返す
+    return c.json({ error: 'Not implemented' }, 501);
+});
+
+/* ===== コメントエンドポイント ===== */
+
+// コメント作成（要認証）
+app.post('/api/posts/:id/comments', authMiddleware, async (c) => {
+    // TODO: コメント作成機能を実装してください
+    // ヒント：
+    // 1. パラメータからpostIdを取得
+    // 2. 投稿が存在するかチェック
+    // 3. リクエストボディからcontentを取得
+    // 4. バリデーションを実施
+    // 5. 新しいコメントを作成
+    // 6. comments配列に追加
+    // 7. 作成されたコメントを返す
+    return c.json({ error: 'Not implemented' }, 501);
+});
+
+// コメント削除（要認証、作成者のみ）
+app.delete('/api/comments/:id', authMiddleware, async (c) => {
+    // TODO: コメント削除機能を実装してください
+    // ヒント：
+    // 1. パラメータからcommentIdを取得
+    // 2. コメントが存在するかチェック
+    // 3. 作成者かチェック（comment.authorId === c.get('user').id）
+    // 4. コメントを削除
+    // 5. 削除成功メッセージを返す
+    return c.json({ error: 'Not implemented' }, 501);
+});
+
+/* ===== カテゴリエンドポイント ===== */
+
+// 全カテゴリ取得
+app.get('/api/categories', (c) => {
+    return c.json(categories);
+});
+
+// サーバー起動
+serve({
+    fetch: app.fetch,
+    port: 3000
+}, (info) => {
+    console.log(`Blog API Server started at http://localhost:${info.port}`);
+});
 
 /* ===== 認証エンドポイント ===== */
 
@@ -250,26 +485,26 @@ app.post('/api/posts', authMiddleware, async (c) => {
     return c.json({ error: 'Not implemented' }, 501);
 });
 
-// 投稿更新（要認証、作成者または管理者のみ）
+// 投稿更新（要認証、作成者のみ）
 app.put('/api/posts/:id', authMiddleware, async (c) => {
     // TODO: 投稿更新機能を実装してください
     // ヒント：
     // 1. パラメータからpostIdを取得
     // 2. 投稿が存在するかチェック
-    // 3. 作成者または管理者かチェック
+    // 3. 作成者かチェック
     // 4. リクエストボディから更新データを取得
     // 5. 投稿を更新
     // 6. 更新された投稿を返す
     return c.json({ error: 'Not implemented' }, 501);
 });
 
-// 投稿削除（要認証、作成者または管理者のみ）
+// 投稿削除（要認証、作成者のみ）
 app.delete('/api/posts/:id', authMiddleware, async (c) => {
     // TODO: 投稿削除機能を実装してください
     // ヒント：
     // 1. パラメータからpostIdを取得
     // 2. 投稿が存在するかチェック
-    // 3. 作成者または管理者かチェック
+    // 3. 作成者かチェック
     // 4. 投稿を削除
     // 5. 関連するコメントも削除
     // 6. 削除成功メッセージを返す
@@ -292,13 +527,13 @@ app.post('/api/posts/:id/comments', authMiddleware, async (c) => {
     return c.json({ error: 'Not implemented' }, 501);
 });
 
-// コメント削除（要認証、作成者または管理者のみ）
+// コメント削除（要認証、作成者のみ）
 app.delete('/api/comments/:id', authMiddleware, async (c) => {
     // TODO: コメント削除機能を実装してください
     // ヒント：
     // 1. パラメータからcommentIdを取得
     // 2. コメントが存在するかチェック
-    // 3. 作成者または管理者かチェック
+    // 3. 作成者かチェック
     // 4. コメントを削除
     // 5. 削除成功メッセージを返す
     return c.json({ error: 'Not implemented' }, 501);
@@ -310,86 +545,6 @@ app.delete('/api/comments/:id', authMiddleware, async (c) => {
 app.get('/api/categories', (c) => {
     return c.json(categories);
 });
-
-// カテゴリ作成（要認証、管理者のみ）
-app.post('/api/categories', authMiddleware, adminMiddleware, async (c) => {
-    // TODO: カテゴリ作成機能を実装してください
-    // ヒント：
-    // 1. リクエストボディから name, description を取得
-    // 2. バリデーションを実施
-    // 3. 新しいカテゴリを作成
-    // 4. categories配列に追加
-    // 5. 作成されたカテゴリを返す
-    return c.json({ error: 'Not implemented' }, 501);
-});
-
-// カテゴリ削除（要認証、管理者のみ）
-app.delete('/api/categories/:id', authMiddleware, adminMiddleware, async (c) => {
-    // TODO: カテゴリ削除機能を実装してください
-    // ヒント：
-    // 1. パラメータからcategoryIdを取得
-    // 2. カテゴリが存在するかチェック
-    // 3. そのカテゴリを使用している投稿があるかチェック
-    // 4. カテゴリを削除
-    // 5. 削除成功メッセージを返す
-    return c.json({ error: 'Not implemented' }, 501);
-});
-
-/* ===== ユーザー管理エンドポイント ===== */
-
-// 全ユーザー取得（要認証、管理者のみ）
-app.get('/api/users', authMiddleware, adminMiddleware, (c) => {
-    const usersWithoutPasswords = users.map(user => ({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        role: user.role
-    }));
-    return c.json(usersWithoutPasswords);
-});
-
-// ユーザー削除（要認証、管理者のみ）
-app.delete('/api/users/:id', authMiddleware, adminMiddleware, async (c) => {
-    // TODO: ユーザー削除機能を実装してください
-    // ヒント：
-    // 1. パラメータからuserIdを取得
-    // 2. 削除対象のユーザーが存在するかチェック
-    // 3. 自分自身を削除しようとしていないかチェック
-    // 4. ユーザーを削除
-    // 5. そのユーザーの投稿とコメントも削除
-    // 6. 削除成功メッセージを返す
-    return c.json({ error: 'Not implemented' }, 501);
-});
-
-/* ===== 統計エンドポイント ===== */
-
-// ブログ統計情報（要認証、管理者のみ）
-app.get('/api/stats', authMiddleware, adminMiddleware, (c) => {
-    const stats = {
-        totalUsers: users.length,
-        totalPosts: posts.length,
-        totalComments: comments.length,
-        totalCategories: categories.length,
-        recentPosts: posts.slice(-5).reverse(), // 最新5件
-        popularTags: getPopularTags(5)
-    };
-    return c.json(stats);
-});
-
-// 人気タグ取得ヘルパー関数
-function getPopularTags(limit = 10) {
-    const tagCounts = {};
-    posts.forEach(post => {
-        post.tags.forEach(tag => {
-            tagCounts[tag] = (tagCounts[tag] || 0) + 1;
-        });
-    });
-    
-    return Object.entries(tagCounts)
-        .sort(([,a], [,b]) => b - a)
-        .slice(0, limit)
-        .map(([tag, count]) => ({ tag, count }));
-}
 
 // サーバー起動
 serve({

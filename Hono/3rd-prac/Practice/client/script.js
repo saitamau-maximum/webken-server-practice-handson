@@ -12,7 +12,6 @@ const postModal = document.getElementById('post-modal');
 const authSection = document.getElementById('auth-section');
 const userSection = document.getElementById('user-section');
 const postActions = document.getElementById('post-actions');
-const adminPanel = document.getElementById('admin-panel');
 
 // 初期化
 document.addEventListener('DOMContentLoaded', () => {
@@ -49,18 +48,10 @@ function updateUI() {
         userSection.style.display = 'block';
         postActions.style.display = 'block';
         document.getElementById('user-info').textContent = `Hello, ${currentUser.username}!`;
-        
-        if (currentUser.role === 'admin') {
-            adminPanel.style.display = 'block';
-            loadAdminData();
-        } else {
-            adminPanel.style.display = 'none';
-        }
     } else {
         authSection.style.display = 'block';
         userSection.style.display = 'none';
         postActions.style.display = 'none';
-        adminPanel.style.display = 'none';
     }
 }
 
@@ -86,12 +77,6 @@ function setupEventListeners() {
     // モーダル関連
     document.querySelectorAll('.close').forEach(closeBtn => {
         closeBtn.addEventListener('click', closeModal);
-    });
-    
-    // 管理者パネル
-    document.getElementById('create-category-btn').addEventListener('click', createCategory);
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => switchTab(e.target.dataset.tab));
     });
     
     // モーダル外クリックで閉じる
@@ -290,7 +275,7 @@ function displayPostDetails(post) {
     const commentForm = document.getElementById('comment-form');
     
     // 編集権限チェック
-    const canEdit = currentUser && (currentUser.id === post.authorId || currentUser.role === 'admin');
+    const canEdit = currentUser && currentUser.id === post.authorId;
     
     postForm.style.display = 'none';
     postDetails.style.display = 'block';
@@ -337,7 +322,7 @@ function displayComments(comments) {
             <div class="comment-header">
                 <span><strong>${comment.author?.username || 'Unknown'}</strong></span>
                 <span>${new Date(comment.createdAt).toLocaleDateString()}</span>
-                ${currentUser && (currentUser.id === comment.authorId || currentUser.role === 'admin') ? 
+                ${currentUser && currentUser.id === comment.authorId ? 
                     `<div class="comment-actions">
                         <button onclick="deleteComment(${comment.id})">Delete</button>
                     </div>` : ''}
@@ -509,235 +494,6 @@ async function deleteComment(commentId) {
             showPostDetails(currentPost.id);
         } else {
             showMessage(data.error || 'Failed to delete comment', 'error');
-        }
-    } catch (error) {
-        showMessage('Network error occurred', 'error');
-    }
-}
-
-// 管理者データを読み込み
-async function loadAdminData() {
-    if (currentUser && currentUser.role === 'admin') {
-        loadUsers();
-        loadCategoriesAdmin();
-        loadStats();
-    }
-}
-
-// タブを切り替え
-function switchTab(tabName) {
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-    
-    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-    document.getElementById(`${tabName}-tab`).classList.add('active');
-    
-    if (tabName === 'users') {
-        loadUsers();
-    } else if (tabName === 'categories') {
-        loadCategoriesAdmin();
-    } else if (tabName === 'stats') {
-        loadStats();
-    }
-}
-
-// ユーザー一覧を読み込み
-async function loadUsers() {
-    try {
-        const response = await fetch('http://localhost:3000/api/users', {
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-        });
-        
-        const users = await response.json();
-        
-        if (response.ok) {
-            const usersList = document.getElementById('users-list');
-            usersList.innerHTML = users.map(user => `
-                <div class="user-card">
-                    <div>
-                        <strong>${escapeHtml(user.username)}</strong> (${escapeHtml(user.email)})
-                        <br>
-                        <small>Role: ${escapeHtml(user.role)}</small>
-                    </div>
-                    ${user.id !== currentUser.id ? `
-                        <button onclick="deleteUser(${user.id})">Delete</button>
-                    ` : '<span>Current User</span>'}
-                </div>
-            `).join('');
-        } else {
-            showMessage(users.error || 'Failed to load users', 'error');
-        }
-    } catch (error) {
-        showMessage('Network error occurred', 'error');
-    }
-}
-
-// 管理者用カテゴリ一覧を読み込み
-async function loadCategoriesAdmin() {
-    try {
-        const response = await fetch('http://localhost:3000/api/categories');
-        const categories = await response.json();
-        
-        const categoriesList = document.getElementById('categories-list');
-        categoriesList.innerHTML = categories.map(category => `
-            <div class="category-card">
-                <div>
-                    <strong>${escapeHtml(category.name)}</strong>
-                    <br>
-                    <small>${escapeHtml(category.description)}</small>
-                </div>
-                <button onclick="deleteCategory(${category.id})">Delete</button>
-            </div>
-        `).join('');
-    } catch (error) {
-        showMessage('Failed to load categories', 'error');
-    }
-}
-
-// 統計情報を読み込み
-async function loadStats() {
-    try {
-        const response = await fetch('http://localhost:3000/api/stats', {
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-        });
-        
-        const stats = await response.json();
-        
-        if (response.ok) {
-            const statsContainer = document.getElementById('stats-container');
-            statsContainer.innerHTML = `
-                <div class="stat-card">
-                    <h3>Total Users</h3>
-                    <div class="stat-number">${stats.totalUsers}</div>
-                </div>
-                <div class="stat-card">
-                    <h3>Total Posts</h3>
-                    <div class="stat-number">${stats.totalPosts}</div>
-                </div>
-                <div class="stat-card">
-                    <h3>Total Comments</h3>
-                    <div class="stat-number">${stats.totalComments}</div>
-                </div>
-                <div class="stat-card">
-                    <h3>Total Categories</h3>
-                    <div class="stat-number">${stats.totalCategories}</div>
-                </div>
-                <div class="stat-card">
-                    <h3>Popular Tags</h3>
-                    <div style="font-size: 0.9rem;">
-                        ${stats.popularTags.map(tag => `${tag.tag} (${tag.count})`).join(', ')}
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <h3>Recent Posts</h3>
-                    <div style="font-size: 0.9rem;">
-                        ${stats.recentPosts.map(post => `
-                            <div style="margin-bottom: 0.5rem;">
-                                <strong>${escapeHtml(post.title)}</strong><br>
-                                <small>by ${post.author?.username || 'Unknown'}</small>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-        } else {
-            showMessage(stats.error || 'Failed to load stats', 'error');
-        }
-    } catch (error) {
-        showMessage('Network error occurred', 'error');
-    }
-}
-
-// カテゴリを作成
-async function createCategory() {
-    const name = document.getElementById('category-name').value;
-    const description = document.getElementById('category-description').value;
-    
-    if (!name) {
-        showMessage('Category name is required', 'error');
-        return;
-    }
-    
-    try {
-        const response = await fetch('http://localhost:3000/api/categories', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
-            body: JSON.stringify({ name, description })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            showMessage('Category created successfully', 'success');
-            document.getElementById('category-name').value = '';
-            document.getElementById('category-description').value = '';
-            loadCategoriesAdmin();
-            loadCategories(); // フィルタ用のカテゴリも更新
-        } else {
-            showMessage(data.error || 'Failed to create category', 'error');
-        }
-    } catch (error) {
-        showMessage('Network error occurred', 'error');
-    }
-}
-
-// ユーザーを削除
-async function deleteUser(userId) {
-    if (!confirm('Are you sure you want to delete this user? This will also delete all their posts and comments.')) {
-        return;
-    }
-    
-    try {
-        const response = await fetch(`http://localhost:3000/api/users/${userId}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            showMessage('User deleted successfully', 'success');
-            loadUsers();
-            loadPosts(); // 投稿一覧も更新
-        } else {
-            showMessage(data.error || 'Failed to delete user', 'error');
-        }
-    } catch (error) {
-        showMessage('Network error occurred', 'error');
-    }
-}
-
-// カテゴリを削除
-async function deleteCategory(categoryId) {
-    if (!confirm('Are you sure you want to delete this category?')) {
-        return;
-    }
-    
-    try {
-        const response = await fetch(`http://localhost:3000/api/categories/${categoryId}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            showMessage('Category deleted successfully', 'success');
-            loadCategoriesAdmin();
-            loadCategories(); // フィルタ用のカテゴリも更新
-        } else {
-            showMessage(data.error || 'Failed to delete category', 'error');
         }
     } catch (error) {
         showMessage('Network error occurred', 'error');

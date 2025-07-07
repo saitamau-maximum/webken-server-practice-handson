@@ -52,7 +52,7 @@ app.post('/* URLを書く */', async (c) => {
 
 app.put('/* URLを書く */', async (c) => {
 
-    const idParam = // パラムから取得から取得したidを入力　
+    const idParam = ;// パラメータからIDを取得する関数を書く
 
     if (!/^\d+$/.test(idParam)) {
         return c.json({ success: false, error: 'IDは数字で指定してください' }, 400)
@@ -86,7 +86,7 @@ app.put('/* URLを書く */', async (c) => {
 
 app.delete('/* URLを書く */', (c) => {
 
-    const idParam = // パラムから取得から取得したidを入力　
+    const idParam = // パラメータからIDを取得する関数を書く　
     
     if (!/^\d+$/.test(idParam)) {
         return c.json({ success: false, error: 'IDは数字で指定してください' }, 400)

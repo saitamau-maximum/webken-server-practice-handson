@@ -14,8 +14,8 @@ const JWT_SECRET = 'your-secret-key-change-this-in-production';
 
 // サンプルデータ
 let users = [
-    { id: 1, username: 'admin', email: 'admin@example.com', password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', role: 'admin' }, // password: "password"
-    { id: 2, username: 'user1', email: 'user1@example.com', password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', role: 'user' }
+    { id: 1, username: 'user1', email: 'user1@example.com', password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi' }, // password: "password"
+    { id: 2, username: 'user2', email: 'user2@example.com', password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi' }
 ];
 
 let posts = [
@@ -39,7 +39,7 @@ let comments = [
 
 // ユーティリティ関数
 function generateToken(user) {
-    return jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
+    return jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '24h' });
 }
 
 function verifyToken(token) {
@@ -65,15 +65,6 @@ async function authMiddleware(c, next) {
     }
 
     c.set('user', decoded);
-    await next();
-}
-
-// 管理者権限チェックミドルウェア
-async function adminMiddleware(c, next) {
-    const user = c.get('user');
-    if (user.role !== 'admin') {
-        return c.json({ error: 'Admin access required' }, 403);
-    }
     await next();
 }
 
@@ -103,8 +94,7 @@ app.post('/api/auth/register', async (c) => {
             id: users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1,
             username,
             email,
-            password: hashedPassword,
-            role: 'user'
+            password: hashedPassword
         };
 
         users.push(newUser);
@@ -115,7 +105,7 @@ app.post('/api/auth/register', async (c) => {
         return c.json({ 
             message: 'User registered successfully',
             token,
-            user: { id: newUser.id, username: newUser.username, email: newUser.email, role: newUser.role }
+            user: { id: newUser.id, username: newUser.username, email: newUser.email }
         }, 201);
     } catch (error) {
         return c.json({ error: 'Registration failed' }, 500);
@@ -150,7 +140,7 @@ app.post('/api/auth/login', async (c) => {
         return c.json({ 
             message: 'Login successful',
             token,
-            user: { id: user.id, username: user.username, email: user.email, role: user.role }
+            user: { id: user.id, username: user.username, email: user.email }
         });
     } catch (error) {
         return c.json({ error: 'Login failed' }, 500);
@@ -295,8 +285,8 @@ app.put('/api/posts/:id', authMiddleware, async (c) => {
 
         const post = posts[postIndex];
         
-        // 作成者または管理者かチェック
-        if (post.authorId !== user.id && user.role !== 'admin') {
+        // 作成者のみ更新可能
+        if (post.authorId !== user.id) {
             return c.json({ error: 'Access denied' }, 403);
         }
 
@@ -343,8 +333,8 @@ app.delete('/api/posts/:id', authMiddleware, async (c) => {
 
         const post = posts[postIndex];
         
-        // 作成者または管理者かチェック
-        if (post.authorId !== user.id && user.role !== 'admin') {
+        // 作成者のみ削除可能
+        if (post.authorId !== user.id) {
             return c.json({ error: 'Access denied' }, 403);
         }
 
@@ -417,8 +407,8 @@ app.delete('/api/comments/:id', authMiddleware, async (c) => {
 
         const comment = comments[commentIndex];
         
-        // 作成者または管理者かチェック
-        if (comment.authorId !== user.id && user.role !== 'admin') {
+        // 作成者のみ削除可能
+        if (comment.authorId !== user.id) {
             return c.json({ error: 'Access denied' }, 403);
         }
 
@@ -438,154 +428,7 @@ app.get('/api/categories', (c) => {
     return c.json(categories);
 });
 
-// カテゴリ作成（要認証、管理者のみ）
-app.post('/api/categories', authMiddleware, adminMiddleware, async (c) => {
-    try {
-        const { name, description } = await c.req.json();
-        
-        // バリデーション
-        if (!name) {
-            return c.json({ error: 'Name is required' }, 400);
-        }
-
-        // 既存カテゴリチェック
-        const existingCategory = categories.find(cat => cat.name === name);
-        if (existingCategory) {
-            return c.json({ error: 'Category already exists' }, 409);
-        }
-
-        // 新しいカテゴリを作成
-        const newCategory = {
-            id: categories.length > 0 ? Math.max(...categories.map(c => c.id)) + 1 : 1,
-            name,
-            description: description || ''
-        };
-
-        categories.push(newCategory);
-        
-        return c.json(newCategory, 201);
-    } catch (error) {
-        return c.json({ error: 'Failed to create category' }, 500);
-    }
-});
-
-// カテゴリ削除（要認証、管理者のみ）
-app.delete('/api/categories/:id', authMiddleware, adminMiddleware, async (c) => {
-    try {
-        const categoryId = parseInt(c.req.param('id'));
-        
-        // カテゴリが存在するかチェック
-        const categoryIndex = categories.findIndex(cat => cat.id === categoryId);
-        if (categoryIndex === -1) {
-            return c.json({ error: 'Category not found' }, 404);
-        }
-
-        // そのカテゴリを使用している投稿があるかチェック
-        const postsUsingCategory = posts.filter(post => post.categoryId === categoryId);
-        if (postsUsingCategory.length > 0) {
-            return c.json({ error: 'Cannot delete category that is being used by posts' }, 409);
-        }
-
-        // カテゴリを削除
-        categories.splice(categoryIndex, 1);
-        
-        return c.json({ message: 'Category deleted successfully' });
-    } catch (error) {
-        return c.json({ error: 'Failed to delete category' }, 500);
-    }
-});
-
-/* ===== ユーザー管理エンドポイント ===== */
-
-// 全ユーザー取得（要認証、管理者のみ）
-app.get('/api/users', authMiddleware, adminMiddleware, (c) => {
-    const usersWithoutPasswords = users.map(user => ({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        role: user.role
-    }));
-    return c.json(usersWithoutPasswords);
-});
-
-// ユーザー削除（要認証、管理者のみ）
-app.delete('/api/users/:id', authMiddleware, adminMiddleware, async (c) => {
-    try {
-        const userId = parseInt(c.req.param('id'));
-        const currentUser = c.get('user');
-        
-        // 削除対象のユーザーが存在するかチェック
-        const userIndex = users.findIndex(u => u.id === userId);
-        if (userIndex === -1) {
-            return c.json({ error: 'User not found' }, 404);
-        }
-
-        // 自分自身を削除しようとしていないかチェック
-        if (userId === currentUser.id) {
-            return c.json({ error: 'Cannot delete your own account' }, 400);
-        }
-
-        // ユーザーを削除
-        users.splice(userIndex, 1);
-        
-        // そのユーザーの投稿を削除
-        const userPosts = posts.filter(post => post.authorId === userId);
-        userPosts.forEach(post => {
-            // 投稿に関連するコメントも削除
-            comments = comments.filter(comment => comment.postId !== post.id);
-        });
-        posts = posts.filter(post => post.authorId !== userId);
-        
-        // そのユーザーのコメントを削除
-        comments = comments.filter(comment => comment.authorId !== userId);
-        
-        return c.json({ message: 'User deleted successfully' });
-    } catch (error) {
-        return c.json({ error: 'Failed to delete user' }, 500);
-    }
-});
-
-/* ===== 統計エンドポイント ===== */
-
-// ブログ統計情報（要認証、管理者のみ）
-app.get('/api/stats', authMiddleware, adminMiddleware, (c) => {
-    const stats = {
-        totalUsers: users.length,
-        totalPosts: posts.length,
-        totalComments: comments.length,
-        totalCategories: categories.length,
-        recentPosts: posts.slice(-5).reverse().map(post => {
-            const author = users.find(u => u.id === post.authorId);
-            return {
-                ...post,
-                author: author ? { id: author.id, username: author.username } : null
-            };
-        }),
-        popularTags: getPopularTags(5),
-        userStats: users.map(user => ({
-            id: user.id,
-            username: user.username,
-            postCount: posts.filter(post => post.authorId === user.id).length,
-            commentCount: comments.filter(comment => comment.authorId === user.id).length
-        }))
-    };
-    return c.json(stats);
-});
-
-// 人気タグ取得ヘルパー関数
-function getPopularTags(limit = 10) {
-    const tagCounts = {};
-    posts.forEach(post => {
-        post.tags.forEach(tag => {
-            tagCounts[tag] = (tagCounts[tag] || 0) + 1;
-        });
-    });
-    
-    return Object.entries(tagCounts)
-        .sort(([,a], [,b]) => b - a)
-        .slice(0, limit)
-        .map(([tag, count]) => ({ tag, count }));
-}
+/* ===== サーバー起動 ===== */
 
 // サーバー起動
 serve({
@@ -595,8 +438,8 @@ serve({
     console.log(`Blog API Server started at http://localhost:${info.port}`);
     console.log('');
     console.log('Default users:');
-    console.log('  Admin: username=admin, password=password');
-    console.log('  User:  username=user1, password=password');
+    console.log('  User1: username=user1, password=password');
+    console.log('  User2: username=user2, password=password');
     console.log('');
     console.log('API Endpoints:');
     console.log('  POST /api/auth/register - Register new user');
@@ -609,9 +452,4 @@ serve({
     console.log('  POST /api/posts/:id/comments - Add comment (auth required)');
     console.log('  DELETE /api/comments/:id - Delete comment (auth required)');
     console.log('  GET  /api/categories - Get all categories');
-    console.log('  POST /api/categories - Create category (admin only)');
-    console.log('  DELETE /api/categories/:id - Delete category (admin only)');
-    console.log('  GET  /api/users - Get all users (admin only)');
-    console.log('  DELETE /api/users/:id - Delete user (admin only)');
-    console.log('  GET  /api/stats - Get blog statistics (admin only)');
 });

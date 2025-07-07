@@ -128,7 +128,7 @@ async function handleAuth(e) {
         
         if (response.ok) {
             localStorage.setItem('token', data.token);
-            currentUser = { id: data.user.id, username: data.user.username, role: data.user.role };
+            currentUser = { id: data.user.id, username: data.user.username };
             updateUI();
             closeModal();
             showMessage('Authentication successful!', 'success');

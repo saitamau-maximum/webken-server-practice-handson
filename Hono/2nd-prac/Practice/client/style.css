@@ -1,0 +1,56 @@
+p {
+    font-weight: bold;
+}
+
+.main {
+    gap: 1.5rem;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+.userTable {
+    display: flex;
+    gap: 10px;
+}
+
+.userId {
+    background-color: beige;
+}
+
+.userName {
+    background-color: lightblue;
+}
+
+.userAge {
+    background-color: beige;
+}
+
+.userHobby {
+    background-color: lightblue;
+}
+
+.register  {
+    padding: 8px;
+    margin: 2rem;
+    background-color: #f0f0f0;
+    border-radius: 16px;
+}
+
+.change {
+    padding: 8px;
+    margin: 2rem;
+    background-color: #f0f0f0;
+    border-radius: 16px;
+}
+
+.delete {
+    padding: 8px;
+    margin: 2rem;
+    background-color: #f0f0f0;
+    border-radius: 16px;
+}
+
+button {
+    color: white;
+    background: blue;
+}

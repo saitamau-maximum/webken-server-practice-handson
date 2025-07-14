@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>名簿アプリ</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <h2>名簿アプリ</h2>
+    <div class="main">
+        <!-- GET メソッドを利用してユーザー情報を表示する -->
+        <button onclick="fetchAllUsers()">全ユーザー表示</button>
+        <div class="result" id="result">
+            <!-- ここに情報が表示されます -->
+        </div>
+
+        <!-- POST メソッドを利用してユーザー登録を行う -->
+        <div class="register">
+            <p>ユーザー登録</p>
+            <form id="registerForm" onsubmit="handleRegister(); return false;">
+                <label for="register-name">名前:</label>
+                <input type="text" id="register-name" name="name" required>
+                <label for="register-age">年齢:</label>
+                <input type="text" id="register-age" name="age" required>
+                <label for="register-hobby">趣味:</label>
+                <input type="text" id="register-hobby" name="hobby" required>
+                <button type="submit">登録</button>
+            </form>
+        </div>
+
+        <!-- PUT メソッドを利用してユーザー情報の更新を行う -->
+        <div class="change">
+            <p>ユーザー情報更新</p>
+            <form id="changeForm" onsubmit="handleChange(); return false;">
+                <label for="change-id">id :</label>
+                <input type="text" id="change-id" name="id" required>
+                <label for="change-name">名前:</label>
+                <input type="text" id="change-name" name="name" required>
+                <label for="change-age">年齢:</label>
+                <input type="text" id="change-age" name="age" required>
+                <label for="change-hobby">趣味:</label>
+                <input type="text" id="change-hobby" name="hobby" required>
+                <button type="submit">更新</button>
+            </form>
+        </div>
+
+
+        <!-- DELETE メソッドを利用してユーザー情報の削除を行う -->
+        <div class="delete">
+                <p>ユーザー消去</p>
+                <form id="userForm" onsubmit="handleDelete(); return false;">
+                    <label for="delete-id">id:</label>
+                    <input type="text" id="delete-id" name="id" required>
+                    <button type="submit">削除</button>
+                </form>    
+        </div>
+    </div>
+    <script src="index.js"></script>
+</body>
+
+</html>
